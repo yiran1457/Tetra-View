@@ -1,0 +1,6 @@
+{
+  "tetra_view.view": "打开属性预览界面",
+  "tetra_view.tooltip": "§8└§7按下§r[%s]§7与%s§7对比",
+  "tetra_view.same": "§8└§7其他物品将与此物品对比",
+  "tetra_view.store": "§8└§7按下§r[%s]§7将其设置为对比物品"
+}
