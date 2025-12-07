@@ -11,6 +11,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.yiran.tetra_view.screen.ViewScreen;
 import se.mickelus.tetra.items.modular.IModularItem;
 
 public class Handler {

@@ -1,13 +1,24 @@
-package net.yiran.tetra_view;
+package net.yiran.tetra_view.screen;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.resources.language.I18n;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.GameType;
+import net.minecraftforge.server.ServerLifecycleHooks;
 import se.mickelus.mutil.gui.*;
+import se.mickelus.tetra.blocks.workbench.gui.GuiButtonOutlined;
 import se.mickelus.tetra.blocks.workbench.gui.WorkbenchStatsGui;
 import se.mickelus.tetra.gui.stats.bar.GuiStatBarTool;
 import se.mickelus.tetra.gui.stats.bar.GuiStatBase;
@@ -28,7 +39,7 @@ public class ViewScreen extends Screen {
     public double xOffset;
     public double yOffset;
 
-    protected ViewScreen(ItemStack stack, Screen lastScreen) {
+    public ViewScreen(ItemStack stack, Screen lastScreen) {
         super(Component.literal(""));
         var mc = Minecraft.getInstance();
         this.statsBarGroup = new GuiElement(0, 0, 0, 0);
@@ -58,22 +69,52 @@ public class ViewScreen extends Screen {
 
     void updateBars() {
         Stream<GuiStatBase> stream;
-        var gt = new GuiTexture(-9,-9,34,34,new ResourceLocation("tetra_view","textures/slot1.png"));
-        gt.setSpriteSize(34,34);
-        if (FromItem.isEmpty()||stack.equals(to)) {
+        var gt = new GuiTexture(-9, -9, 34, 34, new ResourceLocation("tetra_view", "textures/slot1.png"));
+        gt.setSpriteSize(34, 34);
+        if (FromItem.isEmpty() || stack.equals(to)) {
             GuiItem item = new GuiItem(-8, -8);
             item.setItem(this.stack);
             item.addChild(gt);
+            item.addChild(new GuiButtonOutlined(25, 2, I18n.get("tetra_view.copy"), () -> {
+                CompoundTag tag = new CompoundTag();
+                tag.putByte("Slot", (byte) 13);
+                Minecraft.getInstance().keyboardHandler.setClipboard(
+                        "/setblock ~ ~1 ~ minecraft:pink_shulker_box[facing=up]{Items:[" + this.stack.save(tag) + "]}"
+                );
+                Minecraft.getInstance().player.playSound(SoundEvents.UI_BUTTON_CLICK.get(), 0.20F, 1.0F);
+            }));
+
+            MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+            boolean isCreative = Minecraft.getInstance().gameMode.getPlayerMode() == GameType.CREATIVE;
+            if (isCreative && server != null) {
+                String label = I18n.get("tetra_view.give");
+                item.addChild(new GuiButtonOutlined(-27 - Minecraft.getInstance().font.width(label), 2, label, () -> {
+                    ServerPlayer player = server.getPlayerList().getPlayer(Minecraft.getInstance().player.getUUID());
+                    String str = Minecraft.getInstance().keyboardHandler.getClipboard();
+                    if (str.startsWith("/setblock ~ ~1 ~ minecraft:pink_shulker_box[facing=up]{Items:[") ) {
+                        if(str.endsWith("\n")){
+                            str = str.substring(0, str.length()-1);
+                        }
+                        try {
+                            player.addItem(ItemStack.of(TagParser.parseTag(str.substring(62, str.length() - 2))));
+                        } catch (CommandSyntaxException e) {
+                            LogUtils.getLogger().error("Failed to parse item tag", e);
+                        }
+                    }
+                    Minecraft.getInstance().player.playSound(SoundEvents.UI_BUTTON_CLICK.get(), 0.20F, 1.0F);
+                }));
+            }
+
             this.statsItemGroup.addChild(item);
         } else {
-            var pr = new GuiTexture(-25,-10,50,20,new ResourceLocation("tetra_view","textures/progress.png"));
-            pr.setSpriteSize(50,20);
+            var pr = new GuiTexture(-25, -10, 50, 20, new ResourceLocation("tetra_view", "textures/progress.png"));
+            pr.setSpriteSize(50, 20);
             this.statsItemGroup.addChild(pr);
-            GuiItem item = new GuiItem(-8-23, -8);
+            GuiItem item = new GuiItem(-8 - 23, -8);
             item.setItem(this.stack);
             this.statsItemGroup.addChild(item);
             item.addChild(gt);
-            GuiItem item2 = new GuiItem(-8+23, -8);
+            GuiItem item2 = new GuiItem(-8 + 23, -8);
             item2.setItem(this.to);
             item2.addChild(gt);
             this.statsItemGroup.addChild(item2);
@@ -167,6 +208,14 @@ public class ViewScreen extends Screen {
     }
 
     @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (this.statsItemGroup.onMouseClick((int) mouseX, (int) mouseY, button)) {
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
     public boolean mouseDragged(double pMouseX, double pMouseY, int pButton, double pDragX, double pDragY) {
         xOffset += pDragX;
         yOffset += pDragY;
@@ -192,4 +241,5 @@ public class ViewScreen extends Screen {
         }
         return false;
     }
+
 }
